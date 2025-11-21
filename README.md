@@ -48,8 +48,6 @@ cd project_root
 
 Then in `src/app.py`, change the CSV path to `data/job_descriptions_small.csv` if you want to run with the trimmed dataset. Or you can replace the big file with the small one (be careful to backup first).
 
-```
-
 ## Usage
 
 1.  Open `http://localhost:5000` in your browser.
