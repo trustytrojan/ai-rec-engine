@@ -170,3 +170,22 @@ curl -s "http://127.0.0.1:5001/job/1?fields=Job Title,Company,Job Description" |
 
 ## Wrap-up
 This testing steps document aims to capture the live exploratory test we ran for the AI Resume Matcher project and makes the process reproducible. If you'd like, I can extend this to a small script (bash or python) that runs the whole flow and captures outputs into an artifacts folder for easier regression testing.
+
+## Automated end-to-end test script
+You can run `src/scripts/full_e2e_test.py` to perform the entire workflow automatically. It will:
+
+- attempt to download the Resumes dataset from HuggingFace
+- attempt to download the Job dataset from Kaggle using the `kaggle` CLI (if present)
+- extract a subset CSV using `src/extract_small_csv.py`
+- create embeddings using `src/create_embeddings.py` (Mistral) or fallback to random embeddings
+- start the Flask app with the CSV and embeddings and post a resume to `/match` to retrieve matches
+
+Run it like this:
+
+```bash
+python src/scripts/full_e2e_test.py --data-dir data --jobs-limit 150 --jobs-start 0 --port 5002
+```
+
+Notes:
+- Kaggle downloads require `kaggle` CLI installed and configured. If it's not available, download manually and place the archive in `data/`.
+- If Mistral endpoints are rate limited, the script falls back to local `random` embeddings to exercise the E2E plumbing (not semantically meaningful, but useful for testing).
