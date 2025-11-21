@@ -1,0 +1,16 @@
+#fetch 
+job listings dataset: https://www.kaggle.com/datasets/ravindrasinghrana/job-description-dataset/data
+resumes dataset: https://huggingface.co/datasets/datasetmaster/resumes
+
+create an express.js OR a python flask app (the choice is up to you) that:
+- accepts a pdf or text file from a user-facing endpoint. this file should be a resume but it can be anything to match against our job descriptions database
+- uses mistral ai's document annotations api to turn the resume into structured json: https://docs.mistral.ai/capabilities/document_ai/annotations
+- uses the mistral ai text embedding api (https://docs.mistral.ai/capabilities/embeddings/text_embeddings) to convert the structured json resume into embedding vectors.
+- uses the embedding vectors of the resume to match against embedding vectors of our job listings, which we also need to use mistral's text embedding api for.
+
+please read all the linked webpages to familiarize yourself with both the dataset structures and the mistral text embeddings api. **if you think text embeddings are not the right way to go about this, tell me if just simple chat completion would be more effective, considering our datasets are all structured data.**
+please use typescript if you make an express.js app, and please use type annotations if you use python.
+i have already downloaded the job listing and resume datasets, they are in our #codebase . don't read them as they are huge files, just look at the webpages i got them from to understand their structure.
+
+prompt 2:
+i have a better idea for handling job embeddings... we dont want to keep uploading the same crap to mistral. write a separate python script to create job embeddings, outside of our flask app. also, **let's make use of important details from mistral:** the embeddings api can take multiple inputs, and returns the embeddings in the same order (or not, but the index of the input is attached to the json object containing the embedding). **all embedding vectors have dimension 1024,** so we can **save our embedding results to a binary file**, with the first 1024 floats corresponding to the first job in job_descriptions.csv, the second 1024 floats for the second job, all the way to a certain limit for now. remove the job embedding code from our flask app, and replace it with code that loads our embedding file **along with** the csv file so we can correspond a vector to the right job.
