@@ -26,6 +26,8 @@ This is a Flask application that matches resumes (PDF/Text) to job descriptions 
 ```bash
 cd app
 python app.py
+```
+
 ### Run the app with custom CSV / Embeddings paths
 
 You can override the CSV and embeddings binary used by the app at runtime:
