@@ -7,9 +7,9 @@ It uses the following resources under the project `data/` directory (unique file
 - `data/job-description-dataset.zip` — large CSV archive of job descriptions
 
 Test files used in the example:
-- `data/test_resume_1763696130_1170.json` — randomly selected resume saved to file
-- `data/test_jobs_1763696150.csv` — extracted subset of job CSV (150 rows)
-- `data/test_embeddings_1763696150.bin` — embeddings for the above CSV (or a fallback file if Mistral API was limited)
+ - `data/test_resume.json` — randomly selected resume saved to file
+ - `data/test_jobs.csv` — extracted subset of job CSV (150 rows)
+ - `data/test_embeddings.bin` — embeddings for the above CSV (or a fallback file if Mistral API was limited)
 
 ## Prerequisites
 - Python 3.13+ (or your Python venv variant)
@@ -34,7 +34,7 @@ p = Path('data/master_resumes.jsonl')
 lines = p.read_text(encoding='utf-8').splitlines()
 idx = random.randrange(len(lines))
 content = lines[idx]
-fn = Path('data') / f"test_resume_{int(time.time())}_{idx}.json"
+fn = Path('data') / "test_resume.json"
 fn.write_text(content, encoding='utf-8')
 print('Wrote', fn)
 PY
@@ -45,14 +45,13 @@ PY
 ## 2) Extract a chunk of jobs from the ZIP (use `extract_small_csv.py`)
 The `extract_small_csv.py` script extracts a subset (header + data rows) from the large job CSV inside the ZIP.
 
-Example: extract 150 rows and write to `data/test_jobs_<ts>.csv`:
+Example: extract 150 rows and write to `data/test_jobs.csv`:
 
 ```bash
-# Replace the timestamp with your chosen unique suffix
-ts=$(date +%s)
-python src/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs_${ts}.csv --limit 150 --start 0
+# Extract jobs to a fixed filename
+python src/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs.csv --limit 150 --start 0
 # Verify the file exists and has 151 lines (header + 150 rows)
-wc -l data/test_jobs_${ts}.csv
+wc -l data/test_jobs.csv
 ```
 
 Notes:
@@ -63,7 +62,7 @@ If Mistral is available and you have the key set, generate embeddings for your e
 
 ```bash
 # export MISTRAL_API_KEY=your_key
-.venv/bin/python src/create_embeddings.py --csv data/test_jobs_${ts}.csv --out data/test_embeddings_${ts}.bin --limit 150
+.venv/bin/python src/create_embeddings.py --csv data/test_jobs.csv --out data/test_embeddings.bin --limit 150
 ```
 
 If Mistral is rate-limited or not available, create fallback random embeddings locally (quick & reproducible):
@@ -72,10 +71,10 @@ If Mistral is rate-limited or not available, create fallback random embeddings l
 python - <<'PY'
 import numpy as np
 from pathlib import Path
-csv_path = Path('data/test_jobs_${ts}.csv')
+csv_path = Path('data/test_jobs.csv')
 # Count rows minus header
 n_jobs = sum(1 for _ in open(csv_path, 'r', encoding='utf-8')) - 1
-emb_path = Path('data/test_embeddings_fallback_${ts}.bin')
+emb_path = Path('data/test_embeddings_fallback.bin')
 arr = np.random.rand(n_jobs, 1024).astype('float32')
 arr.tofile(emb_path)
 print('Wrote fallback embeddings to', emb_path)
@@ -91,7 +90,7 @@ Start the Flask app on port 5001 and confirm it loads the CSV and embedding file
 # Stop any running dev server
 pkill -f "src/app.py" || true
 # Start Flask in background (see /tmp/flask_test_5001.log for logs)
-.venv/bin/python src/app.py --csv data/test_jobs_${ts}.csv --embeddings data/test_embeddings_${ts}.bin --host 127.0.0.1 --port 5001 &> /tmp/flask_test_5001.log & echo $!
+.venv/bin/python src/app.py --csv data/test_jobs.csv --embeddings data/test_embeddings.bin --host 127.0.0.1 --port 5001 &> /tmp/flask_test_5001.log & echo $!
 # Wait briefly then tail the logs to confirm startup and loading
 sleep 1
 sed -n '1,200p' /tmp/flask_test_5001.log
@@ -105,22 +104,22 @@ You should see:
 Use a simple `curl` request to upload the JSON or text resume file (it’s handled via the file form field):
 
 ```bash
-curl -i -s -X POST -F "file=@data/test_resume_${ts}.json;type=application/json" http://127.0.0.1:5001/match | jq .
+curl -i -s -X POST -F "file=@data/test_resume.json;type=application/json" http://127.0.0.1:5001/match | jq .
 ```
 
 What to expect in the response
 - `resume_analysis`: Contains parsed fields (education, experience, skills, etc.) returned by the parser.
 - `top_matches`: A list of objects `{index, score}` showing indices into the CSV you supplied earlier (0-based row indices).
 
-## 6) Fetch the top match job details with `/job/<index>`
+## 6) Fetch the top match job details with `/jobs/<index>`
 Take the top match index from the `/match` response and fetch the job details:
 
 ```bash
 # Example where top match index is 1
-curl -s "http://127.0.0.1:5001/job/1?fields=Job Title,Company,Job Description" | jq .
+curl -s "http://127.0.0.1:5001/jobs/1" | jq .
 ```
 
-This returns the job's fields in JSON. Adjust `fields` to retrieve different job columns.
+This returns the job details as a JSON object.
 
 ## 7) Troubleshooting & Notes
 - If `create_embeddings.py` fails with a 429 (Service tier capacity exceeded), wait for Mistral cooldown or use the fallback random embeddings step above.
@@ -136,56 +135,37 @@ python -m venv .venv; source .venv/bin/activate; pip install -r requirements.txt
 # 1 - select resume
 python - <<'PY'
 from pathlib import Path
-fn='data/test_resume_1763696130_1170.json'
+fn='data/test_resume.json'
 Path(fn).write_text(Path('data/master_resumes.jsonl').read_text().splitlines()[0])
 print('Wrote', fn)
 PY
 
 # 2 - extract jobs
-ts=$(date +%s)
-python src/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs_${ts}.csv --limit 150 --start 0
+python src/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs.csv --limit 150 --start 0
 
 # 3 - create embeddings (or fallback)
-.venv/bin/python src/create_embeddings.py --csv data/test_jobs_${ts}.csv --out data/test_embeddings_${ts}.bin --limit 150
+.venv/bin/python src/create_embeddings.py --csv data/test_jobs.csv --out data/test_embeddings.bin --limit 150
 # OR fallback
 python - <<'PY'
 # fallback random embeddings
 import numpy as np
 from pathlib import Path
-csv_path=Path('data/test_jobs_${ts}.csv')
+csv_path=Path('data/test_jobs.csv')
 rows=sum(1 for _ in open(csv_path))-1
 arr=np.random.rand(rows,1024).astype('float32')
-arr.tofile(Path('data/test_embeddings_fallback_${ts}.bin'))
+arr.tofile(Path('data/test_embeddings_fallback.bin'))
 PY
 
 # 4 - start app
-.venv/bin/python src/app.py --csv data/test_jobs_${ts}.csv --embeddings data/test_embeddings_${ts}.bin --host 127.0.0.1 --port 5001 &> /tmp/flask_test_5001.log &
+.venv/bin/python src/app.py --csv data/test_jobs.csv --embeddings data/test_embeddings.bin --host 127.0.0.1 --port 5001 &> /tmp/flask_test_5001.log &
 
 # 5 - post resume and get top match
-curl -s -X POST -F "file=@data/test_resume_1763696130_1170.json;type=application/json" http://127.0.0.1:5001/match | jq .
+curl -s -X POST -F "file=@data/test_resume.json;type=application/json" http://127.0.0.1:5001/match | jq .
 
 # 6 - fetch job details
-curl -s "http://127.0.0.1:5001/job/1?fields=Job Title,Company,Job Description" | jq .
+curl -s "http://127.0.0.1:5001/jobs/1" | jq .
 ```
 
 ## Wrap-up
 This testing steps document aims to capture the live exploratory test we ran for the AI Resume Matcher project and makes the process reproducible. If you'd like, I can extend this to a small script (bash or python) that runs the whole flow and captures outputs into an artifacts folder for easier regression testing.
 
-## Automated end-to-end test script
-You can run `src/scripts/full_e2e_test.py` to perform the entire workflow automatically. It will:
-
-- attempt to download the Resumes dataset from HuggingFace
-- attempt to download the Job dataset from Kaggle using the `kaggle` CLI (if present)
-- extract a subset CSV using `src/extract_small_csv.py`
-- create embeddings using `src/create_embeddings.py` (Mistral) or fallback to random embeddings
-- start the Flask app with the CSV and embeddings and post a resume to `/match` to retrieve matches
-
-Run it like this:
-
-```bash
-python src/scripts/full_e2e_test.py --data-dir data --jobs-limit 150 --jobs-start 0 --port 5002
-```
-
-Notes:
-- Kaggle downloads require `kaggle` CLI installed and configured. If it's not available, download manually and place the archive in `data/`.
-- If Mistral endpoints are rate limited, the script falls back to local `random` embeddings to exercise the E2E plumbing (not semantically meaningful, but useful for testing).

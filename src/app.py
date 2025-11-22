@@ -124,68 +124,24 @@ def _to_python_value(v):
     return v
 
 
-@app.route('/job/<int:idx>', methods=['GET'])
-def get_job(idx: int):
-    """Return a single job by index with optional fields param."""
+@app.route('/jobs/<int:idx>', methods=['GET'])
+def get_job_by_index(idx: int):
+    """Return the full job JSON for a single job index. No `fields` param supported.
+
+    Example: GET /jobs/123
+    """
     if JOB_DF is None:
         return jsonify({"error": "Job data not loaded"}), 500
 
     if idx < 0 or idx >= len(JOB_DF):
         return jsonify({"error": "Job index out of range"}), 404
 
-    # Parse fields parameter
-    fields_param = request.args.get('fields', None)
-    if fields_param:
-        requested = [s.strip() for s in fields_param.split(',') if s.strip()]
-        selected_cols = _map_fields_to_columns(JOB_DF, requested)
-    else:
-        # default safe fields (avoid long/PII fields)
-        default_cols = ['Job Id', 'Job Title', 'Company', 'Role', 'Location', 'Salary Range', 'Experience', 'Job Portal']
-        selected_cols = [c for c in default_cols if c in JOB_DF.columns]
-
     job_row = JOB_DF.iloc[idx]
-    filtered = { 'index': int(idx) }
-    for col in selected_cols:
-        filtered[col] = _to_python_value(job_row.get(col))
+    result = {'index': int(idx)}
+    for col in JOB_DF.columns:
+        result[col] = _to_python_value(job_row.get(col))
 
-    return jsonify(filtered)
-
-
-@app.route('/jobs', methods=['GET'])
-def get_jobs():
-    """Return multiple jobs by ids param (comma-separated indices) with optional fields param."""
-    if JOB_DF is None:
-        return jsonify({"error": "Job data not loaded"}), 500
-
-    ids_param = request.args.get('ids', None)
-    if not ids_param:
-        return jsonify({"error": "No ids provided"}), 400
-
-    try:
-        indices = [int(x) for x in ids_param.split(',') if x.strip()]
-    except ValueError:
-        return jsonify({"error": "Invalid ids format"}), 400
-
-    fields_param = request.args.get('fields', None)
-    if fields_param:
-        requested = [s.strip() for s in fields_param.split(',') if s.strip()]
-        selected_cols = _map_fields_to_columns(JOB_DF, requested)
-    else:
-        default_cols = ['Job Id', 'Job Title', 'Company', 'Role', 'Location', 'Salary Range', 'Experience', 'Job Portal']
-        selected_cols = [c for c in default_cols if c in JOB_DF.columns]
-
-    results = []
-    for idx in indices:
-        if idx < 0 or idx >= len(JOB_DF):
-            results.append({"index": idx, "error": "index out of range"})
-            continue
-        job_row = JOB_DF.iloc[idx]
-        filtered = {'index': int(idx)}
-        for col in selected_cols:
-            filtered[col] = _to_python_value(job_row.get(col))
-        results.append(filtered)
-
-    return jsonify(results)
+    return jsonify(result)
 
 
 def _parse_args():

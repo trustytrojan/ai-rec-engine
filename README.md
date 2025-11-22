@@ -65,17 +65,6 @@ Then in `src/app.py`, change the CSV path to `data/job_descriptions_small.csv` i
 
 See `docs/TESTING.md` for a step-by-step guide (commands and example files) that reproduces the E2E testing we used to validate API endpoints, embeddings, and the matching logic. The doc includes fallback options if you hit Mistral rate limits and instructions for saving unique test artifacts under `data/`.
 
-### Full automated test script
-There's a helper script to run a full end-to-end test that automates the steps in `docs/TESTING.md`:
-
-```bash
-# Run the full test (HuggingFace + Kaggle downloads attempted). It will try to download and run the full workflow.
-python src/scripts/full_e2e_test.py --data-dir data --jobs-limit 150 --jobs-start 0 --port 5002
-```
-
-Notes:
-- The script tries to download datasets automatically. Kaggle downloads require the `kaggle` CLI and your Kaggle credentials configured. If not available, the script will try to find an existing CSV in `data/`.
-- If Mistral API is unavailable (or rate-limited), the script falls back to generating random embeddings for test purposes.
 
 ## Architecture
 
@@ -86,10 +75,8 @@ Notes:
 
 - POST /match
     - Upload a resume file (PDF or text) as `file`. Returns `resume_analysis` and `top_matches` where `top_matches` is a list of `{index, score}` referencing rows in `data/job_descriptions.csv`.
-- GET /job/<index>
-    - Returns a single job by its index (zero-based by CSV order). Use `fields` query param to limit fields, e.g. `?fields=Job Title,Company`. Default returns safe fields (no `Job Description` or `Benefits`).
-- GET /jobs?ids=1,2,3
-    - Returns multiple jobs by indices with `fields` param to limit returned columns.
+- GET /jobs/<index>
+    - Returns a single job by its index (zero-based by CSV order).
 
 ## External resources
 These are the datasets and Mistral API docs referenced in the original project prompt and used while building/testing the system.
