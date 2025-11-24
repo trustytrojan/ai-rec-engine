@@ -49,20 +49,21 @@ Example: extract 150 rows and write to `data/test_jobs.csv`:
 
 ```bash
 # Extract jobs to a fixed filename
-python src/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs.csv --limit 150 --start 0
+python scripts/extract_small_csv.py --zip data/job-description-dataset.zip --inner job_descriptions.csv --out data/test_jobs.csv --limit 150 --start 0
 # Verify the file exists and has 151 lines (header + 150 rows)
 wc -l data/test_jobs.csv
 ```
 
 Notes:
-- `--start` is 0-based and counts data rows (the header isn't counted). `--limit` is the number of data rows to extract.
+- `--start` is 0-based and counts data rows (the header isn't counted).
+- `--limit` is the number of data rows to extract.
 
 ## 3) Create embeddings with `create_embeddings.py`
 If Mistral is available and you have the key set, generate embeddings for your extracted CSV:
 
 ```bash
 # export MISTRAL_API_KEY=your_key
-.venv/bin/python src/create_embeddings.py --csv data/test_jobs.csv --out data/test_embeddings.bin --limit 150
+.venv/bin/python scripts/create_embeddings.py --csv data/test_jobs.csv --out data/test_embeddings.bin --limit 150
 ```
 
 If Mistral is rate-limited or not available, create fallback random embeddings locally (quick & reproducible):
@@ -81,7 +82,7 @@ print('Wrote fallback embeddings to', emb_path)
 PY
 ```
 
-Caveat: random embeddings won't produce semantically meaningful matches; they're for testing the end-to-end system only.
+*Caveat: random embeddings won't produce semantically meaningful matches; they're for testing the end-to-end system only.*
 
 ## 4) Start the Flask app (point it to the CSV and the embeddings)
 Start the Flask app on port 5001 and confirm it loads the CSV and embedding files:
